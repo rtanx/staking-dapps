@@ -54,4 +54,39 @@ contract StakeRANKER is Pausable, Ownable, ReentrancyGuard {
         _planExpired = block.timestamp + _planExpired;
         totalStakers = 0;
     }
+
+    function transferToken(address to, uint256 amount) external onlyOwner {
+        require(rankerToken.transfer(to, amount), "Failed to transfer token");
+    }
+
+    function claimReward() external returns (bool) {
+        require(
+            addressStaked[_msgSender()] == true,
+            "You are not participated"
+        );
+        require(
+            stakeInfos[_msgSender()].endTS < block.timestamp,
+            "Stake time is not over yet"
+        );
+        require(stakeInfos[_msgSender()].claimed == 0, "Already claimed");
+
+        uint256 stakeAmount = stakeInfos[_msgSender()].amount;
+        uint256 totalTokens = stakeAmount +
+            ((stakeAmount * interestRate) / 100);
+
+        stakeInfos[_msgSender()].claimed = totalTokens;
+        rankerToken.transfer(_msgSender(), totalTokens);
+
+        emit Claimed(_msgSender(), totalTokens);
+
+        return true;
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 }
