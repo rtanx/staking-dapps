@@ -23,8 +23,6 @@ contract RankerBadge is ERC1155, Ownable {
 
     Badge[] public badges;
 
-    mapping(address => uint8) private _whiteList;
-
     constructor(address _tokenAddress)
         ERC1155(
             "https://ipfs.io/ipfs/bafybeihjjkwdrxxjnuwevlqtqmh3iegcadc32sio4wmo7bv2gbf34qs34a/{id}.json"
@@ -75,24 +73,11 @@ contract RankerBadge is ERC1155, Ownable {
             address(this),
             amount * badges[index].rate
         );
-        require(
-            msg.value >= amount * badges[index].rate,
-            "Not enough ether to mint"
-        );
         _mint(msg.sender, id, amount, "0x00");
     }
 
     function withdraw() public onlyOwner {
         require(address(this).balance > 0, "Balance is 0");
         payable(owner()).transfer(address(this).balance);
-    }
-
-    function setWhiteList(address[] calldata addresses, uint8 numAllowedToMint)
-        external
-        onlyOwner
-    {
-        for (uint256 i = 0; i < addresses.length; i++) {
-            _whiteList[addresses[i]] = numAllowedToMint;
-        }
     }
 }
