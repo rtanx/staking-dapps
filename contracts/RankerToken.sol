@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract RankerToken is ERC20, Pausable, Ownable {
     constructor() ERC20("RankerToken", "RANKER") {
-        _mint(msg.sender, 1e2 * 1e6 * 10**decimals()); // 100m tokens for distribution
+        _mint(msg.sender, 10000 * 10**decimals());
     }
 
     function pause() public onlyOwner {
