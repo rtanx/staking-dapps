@@ -29,7 +29,6 @@ contract RankerBadge is ERC1155, Ownable {
         )
     {
         tokenAddress = IERC20(_tokenAddress);
-        // for value < 0, that's mean unlimited supplies for one address
         badges.push(Badge(BRONZE, type(uint256).max, 20 * 10**3)); // 20.000 $RANKER
         badges.push(Badge(SILVER, type(uint256).max, 100 * 10**3)); // 100.000 $RANKER
         badges.push(Badge(GOLD, 25, 500 * 10**3)); // 500.000 $RANKER
