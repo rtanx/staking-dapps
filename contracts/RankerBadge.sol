@@ -77,7 +77,10 @@ contract RankerBadge is ERC1155, Ownable {
     }
 
     function withdraw() public onlyOwner {
-        require(address(this).balance > 0, "Balance is 0");
-        payable(owner()).transfer(address(this).balance);
+        require(tokenAddress.balanceOf(address(this)) > 0, "Balance is 0");
+        tokenAddress.transfer(
+            msg.sender,
+            tokenAddress.balanceOf(address(this))
+        );
     }
 }
