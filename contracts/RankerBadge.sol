@@ -1,78 +1,66 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract RankerBadge is ERC1155, Ownable {
+contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
     IERC20 public tokenAddress;
+    using Counters for Counters.Counter;
 
-    struct Badge {
-        uint256 id;
-        uint256 suppliesPerAddr;
-        uint256 rate;
-    }
+    Counters.Counter private _tokenIds;
 
-    uint256 public constant BRONZE = 1;
-    uint256 public constant SILVER = 2;
-    uint256 public constant GOLD = 3;
-    uint256 public constant GAMING = 4;
+    uint256 private _maxSupply;
+    uint256 private _priceRate;
+    bool private _isNoMaxSupply;
 
-    Badge[] public badges;
+    string public baseTokenURI;
 
-    constructor(address _tokenAddress)
-        ERC1155(
-            "https://ipfs.io/ipfs/bafybeihjjkwdrxxjnuwevlqtqmh3iegcadc32sio4wmo7bv2gbf34qs34a/{id}.json"
-        )
-    {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        string memory baseURI,
+        address _tokenAddress,
+        uint256 priceRate_,
+        uint256 maxSupply_,
+        bool isNoMaxSupply_
+    ) ERC721(name_, symbol_) {
+        setBaseURI(baseURI);
         tokenAddress = IERC20(_tokenAddress);
-        badges.push(Badge(BRONZE, type(uint256).max, 20 * 10**3)); // 20.000 $RANKER
-        badges.push(Badge(SILVER, type(uint256).max, 100 * 10**3)); // 100.000 $RANKER
-        badges.push(Badge(GOLD, 25, 500 * 10**3)); // 500.000 $RANKER
-        badges.push(Badge(GAMING, type(uint256).max, 500)); // 500 $RANKER
+
+        _priceRate = priceRate_;
+        _maxSupply = maxSupply_;
+        _isNoMaxSupply = isNoMaxSupply_;
     }
 
-    function setURI(string memory newuri) public onlyOwner {
-        _setURI(newuri);
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseTokenURI;
     }
 
-    function setTokenAddress(address _tokenAddress) public onlyOwner {
-        tokenAddress = IERC20(_tokenAddress);
+    function setBaseURI(string memory _baseTokenURI) public onlyOwner {
+        baseTokenURI = _baseTokenURI;
     }
 
-    function uri(uint256 _tokenId)
-        public
-        pure
-        override
-        returns (string memory)
-    {
-        return
-            string(
-                abi.encodePacked(
-                    "https://ipfs.io/ipfs/bafybeihjjkwdrxxjnuwevlqtqmh3iegcadc32sio4wmo7bv2gbf34qs34a/",
-                    Strings.toString(_tokenId),
-                    ".json"
-                )
+    function safeMint(uint256 amount) public payable {
+        uint256 currentMinted = _tokenIds.current();
+        if (!_isNoMaxSupply) {
+            require(
+                currentMinted + amount <= _maxSupply,
+                "Not enough NFTs to mint, reached maximum supply"
             );
-    }
-
-    function mint(uint256 id, uint256 amount) public payable {
-        require(id < badges.length && id > 0, "Token doesn't exists");
-        uint256 index = id - 1;
-
-        require(
-            balanceOf(msg.sender, id) < badges[index].suppliesPerAddr,
-            "Has reached the maximum supply per address for a given tokenId"
-        );
+        }
         tokenAddress.transferFrom(
             msg.sender,
             address(this),
-            amount * badges[index].rate
+            amount * _priceRate
         );
-        _mint(msg.sender, id, amount, "0x00");
+        for (uint256 i = 0; i < amount; i++) {
+            uint256 tokenId = _tokenIds.current();
+            _safeMint(msg.sender, tokenId);
+            _tokenIds.increment();
+        }
     }
 
     function withdraw() public onlyOwner {
@@ -81,5 +69,24 @@ contract RankerBadge is ERC1155, Ownable {
             msg.sender,
             tokenAddress.balanceOf(address(this))
         );
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override(ERC721, ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721Enumerable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

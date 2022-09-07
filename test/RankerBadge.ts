@@ -6,7 +6,6 @@ describe("RankerBadge", function () {
     async function deployRankerBadgeFixture() {
         const RankerBadge = await ethers.getContractFactory("RankerBadge");
         const [owner, otherAccount] = await ethers.getSigners();
-
         const contract = await RankerBadge.deploy("0x6431FA4B812a2DCC062A38CB55cc7D18135AdEAd");
 
         await contract.deployed();
@@ -15,10 +14,14 @@ describe("RankerBadge", function () {
     }
 
     it("Should only purchase Gold badge less than equal 25 Gold badge per user", async function () {
-        const { contract } = await loadFixture(deployRankerBadgeFixture);
+        const { contract, otherAccount, owner } = await loadFixture(deployRankerBadgeFixture);
         const goldBadgeId = await contract.callStatic.GOLD();
 
-        console.log(goldBadgeId);
+        // console.log("owner:", await owner.getAddress(), await owner.getBalance());
+        // console.log("otherAccount:", await otherAccount.getAddress(), await otherAccount.getBalance());
+
+        const mint = await contract.connect(otherAccount).mint(goldBadgeId, 2);
+        console.log(mint);
     });
 
 });
