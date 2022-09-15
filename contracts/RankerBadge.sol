@@ -6,10 +6,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
     IERC20 public tokenAddress;
     using Counters for Counters.Counter;
+    mapping(uint256 => uint256) private _tokenIdToTokenType;
 
     Counters.Counter private _tokenIds;
 
@@ -53,6 +55,26 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         baseTokenURI = _baseTokenURI;
     }
 
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        _requireMinted(tokenId);
+
+        string memory baseURI = _baseURI();
+        return
+            bytes(baseURI).length > 0
+                ? string(
+                    abi.encodePacked(
+                        baseURI,
+                        Strings.toString(_tokenIdToTokenType[tokenId])
+                    )
+                )
+                : "";
+    }
+
     function safeMint(uint256 tokenType, uint256 amount) public payable {
         require(
             tokenType <= badges.length && tokenType > 0,
@@ -75,6 +97,7 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         for (uint256 i = 0; i < amount; i++) {
             uint256 tokenId = _tokenIds.current();
             _safeMint(msg.sender, tokenId);
+            _tokenIdToTokenType[tokenId] = tokenType;
             _tokenIds.increment();
             badges[index].totalSupply.increment();
         }
