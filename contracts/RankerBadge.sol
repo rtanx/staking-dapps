@@ -75,7 +75,7 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
                 : "";
     }
 
-    function safeMint(uint256 tokenType, uint256 amount) public payable {
+    function safeMint(uint256 tokenType, uint256 amount) public {
         require(
             tokenType <= badges.length && tokenType > 0,
             "Token doesn't exists"

@@ -6,7 +6,7 @@ describe("RankerBadge", function () {
     async function deployRankerBadgeFixture() {
         const RankerBadge = await ethers.getContractFactory("RankerBadge");
         const [owner, otherAccount] = await ethers.getSigners();
-        const contract = await RankerBadge.deploy("Ranker Badge", "RNKR", "https://ipfs.io/ipfs/bafybeihjjkwdrxxjnuwevlqtqmh3iegcadc32sio4wmo7bv2gbf34qs34a/{id}.json", "0x6431FA4B812a2DCC062A38CB55cc7D18135AdEAd");
+        const contract = await RankerBadge.deploy("Ranker Badge", "RNKR", "https://gateway.pinata.cloud/ipfs/QmaBvRspCDhmiRRkYwSXpe5bF9hMX2gpzhApir63wRjfmD/", "0xbb3B92333bc2F429d72dF0F7d6D065fBaE9F88c9");
 
         await contract.deployed();
 
