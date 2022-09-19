@@ -122,11 +122,7 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         );
 
         uint256 index = tokenType - 1;
-        if (badges[index].totalSupply.current() == 0) {
-            return 0;
-        } else {
-            return badges[index].totalSupply.current() - 1;
-        }
+        return badges[index].totalSupply.current();
     }
 
     // The following functions are overrides required by Solidity.
