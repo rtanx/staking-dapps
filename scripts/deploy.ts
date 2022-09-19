@@ -1,18 +1,25 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  const rankerTokenFac = await ethers.getContractFactory("RankerToken");
 
-  const lockedAmount = ethers.utils.parseEther("1");
+  // deploy ranker token
+  console.log("Deploying ranker token...");
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  const rankerToken = await rankerTokenFac.deploy();
+  await rankerToken.deployed();
+  console.log("Ranker Token Contract deployed to address:", rankerToken.address);
 
-  await lock.deployed();
+  const rankerBadgeFac = await ethers.getContractFactory("RankerBadge")
 
-  console.log("Lock with 1 ETH deployed to:", lock.address);
+  // deploy ranker badge
+  console.log("Deploying ranker badge...");
+  const rankerBadge = await rankerBadgeFac.deploy("Ranker Badge", "RNKR", "https://ipfs.io/ipfs/bafybeihjjkwdrxxjnuwevlqtqmh3iegcadc32sio4wmo7bv2gbf34qs34a/{id}.json", rankerToken.address);
+  await rankerBadge.deployed();
+
+  console.log("Ranker Badge Contract deployed to address:", rankerBadge.address);
+
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere

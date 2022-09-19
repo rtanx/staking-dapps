@@ -1,78 +1,106 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract RankerBadge is ERC1155, Ownable {
+contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
     IERC20 public tokenAddress;
+    using Counters for Counters.Counter;
+    mapping(uint256 => uint256) private _tokenIdToTokenType;
 
-    struct Badge {
-        uint256 id;
-        uint256 suppliesPerAddr;
-        uint256 rate;
-    }
+    Counters.Counter private _tokenIds;
 
     uint256 public constant BRONZE = 1;
     uint256 public constant SILVER = 2;
     uint256 public constant GOLD = 3;
     uint256 public constant GAMING = 4;
 
-    Badge[] public badges;
+    struct Badge {
+        uint256 tokenType;
+        uint256 priceRate;
+        uint256 maxSupply;
+        Counters.Counter totalSupply;
+        bool hasMaxSupply;
+    }
 
-    constructor(address _tokenAddress)
-        ERC1155(
-            "https://ipfs.io/ipfs/bafybeihjjkwdrxxjnuwevlqtqmh3iegcadc32sio4wmo7bv2gbf34qs34a/{id}.json"
-        )
-    {
+    Badge[4] private badges;
+
+    string public baseTokenURI;
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        string memory baseURI,
+        address _tokenAddress
+    ) ERC721(name_, symbol_) {
+        setBaseURI(baseURI);
         tokenAddress = IERC20(_tokenAddress);
-        badges.push(Badge(BRONZE, type(uint256).max, 20 * 10**3)); // 20.000 $RANKER
-        badges.push(Badge(SILVER, type(uint256).max, 100 * 10**3)); // 100.000 $RANKER
-        badges.push(Badge(GOLD, 25, 500 * 10**3)); // 500.000 $RANKER
-        badges.push(Badge(GAMING, type(uint256).max, 500)); // 500 $RANKER
+
+        badges[0] = Badge(BRONZE, 20_000, 0, Counters.Counter(0), false);
+        badges[1] = Badge(SILVER, 100_000, 0, Counters.Counter(0), false);
+        badges[2] = Badge(GOLD, 500_000, 25, Counters.Counter(0), true);
+        badges[3] = Badge(GAMING, 500, 0, Counters.Counter(0), false);
     }
 
-    function setURI(string memory newuri) public onlyOwner {
-        _setURI(newuri);
+    function _baseURI() internal view virtual override returns (string memory) {
+        return baseTokenURI;
     }
 
-    function setTokenAddress(address _tokenAddress) public onlyOwner {
-        tokenAddress = IERC20(_tokenAddress);
+    function setBaseURI(string memory _baseTokenURI) public onlyOwner {
+        baseTokenURI = _baseTokenURI;
     }
 
-    function uri(uint256 _tokenId)
+    function tokenURI(uint256 tokenId)
         public
-        pure
+        view
         override
         returns (string memory)
     {
+        _requireMinted(tokenId);
+
+        string memory baseURI = _baseURI();
         return
-            string(
-                abi.encodePacked(
-                    "https://ipfs.io/ipfs/bafybeihjjkwdrxxjnuwevlqtqmh3iegcadc32sio4wmo7bv2gbf34qs34a/",
-                    Strings.toString(_tokenId),
-                    ".json"
+            bytes(baseURI).length > 0
+                ? string(
+                    abi.encodePacked(
+                        baseURI,
+                        Strings.toString(_tokenIdToTokenType[tokenId])
+                    )
                 )
-            );
+                : "";
     }
 
-    function mint(uint256 id, uint256 amount) public payable {
-        require(id < badges.length && id > 0, "Token doesn't exists");
-        uint256 index = id - 1;
-
+    function safeMint(uint256 tokenType, uint256 amount) public payable {
         require(
-            balanceOf(msg.sender, id) < badges[index].suppliesPerAddr,
-            "Has reached the maximum supply per address for a given tokenId"
+            tokenType <= badges.length && tokenType > 0,
+            "Token doesn't exists"
         );
+        uint256 index = tokenType - 1;
+        uint256 totalMintedPerBadge = badges[index].totalSupply.current();
+
+        if (badges[index].hasMaxSupply) {
+            require(
+                totalMintedPerBadge + amount <= badges[index].maxSupply,
+                "Not enough NFTs to mint, reached maximum supply"
+            );
+        }
         tokenAddress.transferFrom(
             msg.sender,
             address(this),
-            amount * badges[index].rate
+            amount * badges[index].priceRate
         );
-        _mint(msg.sender, id, amount, "0x00");
+        for (uint256 i = 0; i < amount; i++) {
+            uint256 tokenId = _tokenIds.current();
+            _safeMint(msg.sender, tokenId);
+            _tokenIdToTokenType[tokenId] = tokenType;
+            _tokenIds.increment();
+            badges[index].totalSupply.increment();
+        }
     }
 
     function withdraw() public onlyOwner {
@@ -81,5 +109,42 @@ contract RankerBadge is ERC1155, Ownable {
             msg.sender,
             tokenAddress.balanceOf(address(this))
         );
+    }
+
+    function totalSupplyPerBadge(uint256 tokenType)
+        public
+        view
+        returns (uint256)
+    {
+        require(
+            tokenType <= badges.length && tokenType > 0,
+            "Token doesn't exists"
+        );
+
+        uint256 index = tokenType - 1;
+        if (badges[index].totalSupply.current() == 0) {
+            return 0;
+        } else {
+            return badges[index].totalSupply.current() - 1;
+        }
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override(ERC721, ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721Enumerable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

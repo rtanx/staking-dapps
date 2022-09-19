@@ -28,7 +28,7 @@ contract StakeRANKER is Pausable, Ownable, ReentrancyGuard {
     // 180 days
     uint256 _planExpired = 180 * 24 * 60 * 60;
 
-    uint8 public interestRate = 1 << 5;
+    uint8 public interestRate = 32;
     uint256 public planExpired;
     uint8 public totalStakers;
 
