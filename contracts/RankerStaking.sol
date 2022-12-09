@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
+
+import "hardhat/console.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract RankerStaking {
+contract RankerStaking is Ownable {
     IERC20 public immutable stakingToken;
     IERC20 public immutable rewardsToken;
-
-    address public owner;
 
     // Duration of rewards to be paid out (in seconds)
     uint public duration;
@@ -29,14 +30,8 @@ contract RankerStaking {
     mapping(address => uint) public balanceOf;
 
     constructor(address _stakingToken, address _rewardToken) {
-        owner = msg.sender;
         stakingToken = IERC20(_stakingToken);
         rewardsToken = IERC20(_rewardToken);
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "not authorized");
-        _;
     }
 
     modifier updateReward(address _account) {
@@ -100,18 +95,15 @@ contract RankerStaking {
         duration = _duration;
     }
 
-    function notifyRewardAmount(uint _amount)
-        external
-        onlyOwner
-        updateReward(address(0))
-    {
+    function notifyRewardAmount(
+        uint _amount
+    ) external onlyOwner updateReward(address(0)) {
         if (block.timestamp >= finishAt) {
             rewardRate = _amount / duration;
         } else {
             uint remainingRewards = (finishAt - block.timestamp) * rewardRate;
             rewardRate = (_amount + remainingRewards) / duration;
         }
-
         require(rewardRate > 0, "reward rate = 0");
         require(
             rewardRate * duration <= rewardsToken.balanceOf(address(this)),

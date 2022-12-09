@@ -26,6 +26,9 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         uint256 maxSupply;
         Counters.Counter totalSupply;
         bool hasMaxSupply;
+        uint256 temporarySupplyLimit;
+        uint256 temporarySupplyLimitDateTimeDeadline;
+        bool hasTemporarySupplyLimit;
     }
 
     Badge[4] private badges;
@@ -41,10 +44,10 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         setBaseURI(baseURI);
         tokenAddress = IERC20(_tokenAddress);
 
-        badges[0] = Badge(BRONZE, 20_000, 0, Counters.Counter(0), false);
-        badges[1] = Badge(SILVER, 100_000, 0, Counters.Counter(0), false);
-        badges[2] = Badge(GOLD, 500_000, 25, Counters.Counter(0), true);
-        badges[3] = Badge(GAMING, 500, 0, Counters.Counter(0), false);
+        badges[0] = Badge(BRONZE, 20_000, 0, Counters.Counter(0), false, 0, 0, false);
+        badges[1] = Badge(SILVER, 100_000, 0, Counters.Counter(0), false, 0, 0, false);
+        badges[2] = Badge(GOLD, 500_000, 25, Counters.Counter(0), true, 0, 0, false);
+        badges[3] = Badge(GAMING, 500, 0, Counters.Counter(0), false, 30, 1671778800, true); // 1671778800 = Friday, 23 Dec 2022 07.00 UTC
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
@@ -55,45 +58,37 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         baseTokenURI = _baseTokenURI;
     }
 
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireMinted(tokenId);
 
         string memory baseURI = _baseURI();
         return
             bytes(baseURI).length > 0
-                ? string(
-                    abi.encodePacked(
-                        baseURI,
-                        Strings.toString(_tokenIdToTokenType[tokenId])
-                    )
-                )
+                ? string(abi.encodePacked(baseURI, Strings.toString(_tokenIdToTokenType[tokenId])))
                 : "";
     }
 
     function safeMint(uint256 tokenType, uint256 amount) public {
-        require(
-            tokenType <= badges.length && tokenType > 0,
-            "Token doesn't exists"
-        );
+        require(tokenType <= badges.length && tokenType > 0, "Token doesn't exists");
         uint256 index = tokenType - 1;
         uint256 totalMintedPerBadge = badges[index].totalSupply.current();
 
-        if (badges[index].hasMaxSupply) {
+        if (
+            badges[index].hasTemporarySupplyLimit &&
+            badges[index].temporarySupplyLimitDateTimeDeadline >= block.timestamp
+        ) {
+            require(
+                totalMintedPerBadge + amount <= badges[index].temporarySupplyLimit,
+                "Not enough NFTs to mint, reached maximum supply"
+            );
+        } else if (badges[index].hasMaxSupply) {
             require(
                 totalMintedPerBadge + amount <= badges[index].maxSupply,
                 "Not enough NFTs to mint, reached maximum supply"
             );
         }
-        tokenAddress.transferFrom(
-            msg.sender,
-            address(this),
-            amount * badges[index].priceRate
-        );
+
+        tokenAddress.transferFrom(msg.sender, address(this), amount * badges[index].priceRate);
         for (uint256 i = 0; i < amount; i++) {
             uint256 tokenId = _tokenIds.current();
             _safeMint(msg.sender, tokenId);
@@ -105,21 +100,11 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
 
     function withdraw() public onlyOwner {
         require(tokenAddress.balanceOf(address(this)) > 0, "Balance is 0");
-        tokenAddress.transfer(
-            msg.sender,
-            tokenAddress.balanceOf(address(this))
-        );
+        tokenAddress.transfer(msg.sender, tokenAddress.balanceOf(address(this)));
     }
 
-    function totalSupplyPerBadge(uint256 tokenType)
-        public
-        view
-        returns (uint256)
-    {
-        require(
-            tokenType <= badges.length && tokenType > 0,
-            "Token doesn't exists"
-        );
+    function totalSupplyPerBadge(uint256 tokenType) public view returns (uint256) {
+        require(tokenType <= badges.length && tokenType > 0, "Token doesn't exists");
 
         uint256 index = tokenType - 1;
         return badges[index].totalSupply.current();
@@ -135,12 +120,9 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721, ERC721Enumerable)
-        returns (bool)
-    {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override(ERC721, ERC721Enumerable) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 }
