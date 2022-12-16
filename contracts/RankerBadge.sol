@@ -47,7 +47,7 @@ contract RankerBadge is ERC721, ERC721Enumerable, Ownable {
         badges[0] = Badge(BRONZE, 20_000, 0, Counters.Counter(0), false, 0, 0, false);
         badges[1] = Badge(SILVER, 100_000, 0, Counters.Counter(0), false, 0, 0, false);
         badges[2] = Badge(GOLD, 500_000, 25, Counters.Counter(0), true, 0, 0, false);
-        badges[3] = Badge(GAMING, 500, 0, Counters.Counter(0), false, 30, 1671778800, true); // 1671778800 = Friday, 23 Dec 2022 07.00 UTC
+        badges[3] = Badge(GAMING, 500, 0, Counters.Counter(0), false, 1000, 1671778800, true); // 1671778800 = Friday, 23 Dec 2022 07.00 UTC
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
